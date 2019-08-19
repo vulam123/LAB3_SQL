@@ -1,0 +1,104 @@
+﻿--Lấy tất cả thông tin sản phẩm thuộc danh mục Quần, Áo, Mũ và có giá >= 250000
+select product.*,category.NAME from PRODUCT
+left join category on PRODUCT.CATE_ID=category.ID
+where category.name in ('Quần','Áo','Mũ') and PRODUCT.PRICE>=250000;
+
+--Lấy tất cả thông tin sản phẩm đã hết hàng
+select * from product where sale=total or TOTAL = 0; 
+
+--Hiển thị tên Danh mục, tổng số sản phẩm còn lại trong kho
+select c.id,c.NAME,
+case when sum(p.total)-sum(p.sale) is null then '0' 
+else sum(p.total)-sum(p.sale) end as rest from category c
+left join PRODUCT p on c.ID = p.CATE_ID
+group by c.ID,c.NAME;
+
+--Hiển thị tên Danh mục, tổng số sản phẩm còn lại trong kho với điều kiện tổng số sản phẩm còn lại >=10
+select * from (
+select c.id,c.NAME,
+case when sum(p.total)-sum(p.sale) is null then '0' 
+else sum(p.total)-sum(p.sale) end as rest from category c
+left join PRODUCT p on c.ID = p.CATE_ID
+group by c.ID,c.NAME ) tbl where tbl.rest>=10 ;
+
+--Hiển thị thông tin những order thuộc năm 2018
+select * from [dbo].[ORDER] where year(CREATE_DATE)= 2018;
+
+--Tính tổng tiền của một đơn hàng bất kỳ
+select o.*,tbl.total from (
+select o.order_id,case when sum(detail.stock*detail.price) is null
+then '0' else sum(detail.stock*detail.price) end as total from [dbo].[ORDER] o
+left join ORDER_DETAIL detail on o.ORDER_ID = detail.ORDER_ID
+group by o.order_id ) tbl
+left join [dbo].[ORDER] o on tbl.ORDER_ID = o.ORDER_ID;
+
+--Hiển thị ra thông tin order và order detail(mỗi product một dòng) với điều kiện số lượng bán của sản phẩm đó phải >2
+select * from [dbo].[ORDER] o
+left join ORDER_DETAIL detail on o.ORDER_ID = detail.ORDER_ID
+where detail.STOCK > 2;
+
+--Hiển thị thông tin của order chi có một sản phẩm.
+select o.* from (
+select o.ORDER_ID from [dbo].[ORDER] o
+left join ORDER_DETAIL detail on o.ORDER_ID = detail.ORDER_ID
+where (select count(*) from [dbo].[ORDER] o1 
+join ORDER_DETAIL detail1 on o1.ORDER_ID = detail1.ORDER_ID 
+where o1.ORDER_ID=o.ORDER_ID  group by o1.ORDER_ID) = 1 group by o.ORDER_ID)tbl
+left join [dbo].[ORDER] o on tbl.ORDER_ID = o.ORDER_ID ;
+
+--Hiển thị ra thông tin order có giá bán của sản phẩm khác với giá hiện tại của sản phẩm đó.
+select o.* from (
+select o.ORDER_ID from [dbo].[ORDER] o
+left join ORDER_DETAIL detail on o.ORDER_ID = detail.ORDER_ID
+left join PRODUCT p on detail.PROD_ID = p.ID
+where detail.PRICE != p.PRICE group by o.ORDER_ID) tbl
+left join  [dbo].[ORDER] o on tbl.ORDER_ID = o.ORDER_ID;
+
+--Tính tổng tiền tất cả các đơn hàng trong quý 4 năm 2018
+select sum(detail.price*detail.stock) from [dbo].[ORDER] o
+left join ORDER_DETAIL detail on o.ORDER_ID = detail.ORDER_ID 
+where o.CREATE_DATE <= (SELECT CAST(DATEADD (dd, -1, DATEADD(qq, DATEDIFF(qq, 0, '2018-11-11') +1, 0)) as DATE))
+and o.CREATE_DATE >= (SELECT CAST(DATEADD(qq, DATEDIFF(qq, 0, '2018-11-11'), 0) as DATE));
+
+--Thống kê tổng số sản phẩm đã bán theo từng năm
+select year(CREATE_DATE) as 'year' ,sum(detail.STOCK) as 'Tong so san pham da ban'  from [dbo].[ORDER] o
+left join ORDER_DETAIL detail on o.ORDER_ID = detail.ORDER_ID
+group by year(CREATE_DATE);
+
+--Viết câu lệnh lấy thông tin của product chỉ có 1 màu.
+select * from (
+select name,count(color_id) as color_type from product group by name ) tbl where tbl.color_type=1;
+
+--Viết câu lệnh lấy thông tin của product là màu Đỏ và có Size là XXL, S
+select PRODUCT.*,COLOR.COLOR_NAME,SIZE.SIZE_NAME from product
+left join COLOR ON PRODUCT.COLOR_ID = COLOR.COLOR_ID
+LEFT JOIN SIZE ON PRODUCT.SIZE_ID = SIZE.SIZE_ID
+WHERE COLOR_NAME ='RED' AND SIZE_NAME IN ('XXL','S');
+
+--Viết câu lệnh lấy thông tin của product có Size không là L, XL
+select PRODUCT.*,COLOR.COLOR_NAME,SIZE.SIZE_NAME from product
+left join COLOR ON PRODUCT.COLOR_ID = COLOR.COLOR_ID
+LEFT JOIN SIZE ON PRODUCT.SIZE_ID = SIZE.SIZE_ID
+WHERE  SIZE_NAME NOT IN ('L','XL');
+
+--Viết câu lệnh thống kê số sản phẩm theo màu.
+select C.*,TBL.number from (
+SELECT COLOR_ID,COUNT(*) as number FROM PRODUCT GROUP BY COLOR_ID)tbl
+left join COLOR C ON C.COLOR_ID = TBL.COLOR_ID;
+
+--Viết câu lệnh thống kê số sản phẩm theo size
+select S.*,TBL.number from (
+SELECT SIZE_ID,COUNT(*) as number FROM PRODUCT GROUP BY SIZE_ID)tbl
+left join SIZE S ON S.SIZE_ID = TBL.SIZE_ID;
+
+--Viết câu lệnh lấy ra thông tin của sản phẩm bán chạy nhất theo size
+SELECT * FROM (
+SELECT TOP 1 SIZE_ID,SUM(SALE) TOTAL FROM PRODUCT GROUP BY SIZE_ID ORDER BY TOTAL DESC)TBL
+LEFT JOIN SIZE S ON S.SIZE_ID = TBL.SIZE_ID;
+
+--Viết câu lệnh lấy ra thông tin của sản phẩm bán chạy nhất theo color
+SELECT * FROM (
+SELECT TOP 1 COLOR_ID,SUM(SALE) TOTAL FROM PRODUCT GROUP BY COLOR_ID ORDER BY TOTAL DESC) TBL
+LEFT JOIN COLOR C ON C.COLOR_ID = TBL.COLOR_ID;
+
+
